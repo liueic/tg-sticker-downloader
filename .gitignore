@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+
+# 环境变量
+.env
+
+# 下载的文件
+downloads/
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+
+# 运行时数据
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# 目录
+.npm
+.eslintcache
+.node_repl_history
+.yarn-integrity
+
+# 系统文件
+.DS_Store
+Thumbs.db
