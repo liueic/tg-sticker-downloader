@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs-extra');
+const cacheManager = require('./cacheManager');
 
 /**
  * 启动文件服务器
@@ -17,10 +18,28 @@ function startFileServer(port = 3000) {
   // 设置静态文件服务
   app.use(express.static(publicDir));
   
+  // 设置缓存文件访问路由
+  app.get('/cache/:filename', (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = path.join(cacheManager.cacheDir, filename);
+      
+      if (fs.existsSync(filePath)) {
+        res.download(filePath);
+      } else {
+        res.status(404).send('文件不存在');
+      }
+    } catch (error) {
+      console.error('访问缓存文件时出错:', error);
+      res.status(500).send('服务器错误');
+    }
+  });
+  
   // 文件列表路由
   app.get('/', (req, res) => {
     try {
-      const files = fs.readdirSync(publicDir)
+      // 获取公共目录中的文件
+      const publicFiles = fs.readdirSync(publicDir)
         .filter(file => file.endsWith('.zip'))
         .map(file => {
           const stats = fs.statSync(path.join(publicDir, file));
@@ -28,9 +47,30 @@ function startFileServer(port = 3000) {
             name: file,
             size: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
             url: `/${file}`,
-            created: stats.birthtime.toLocaleString()
+            created: stats.birthtime.toLocaleString(),
+            type: 'public'
           };
         });
+      
+      // 获取缓存目录中的文件
+      const cacheInfo = cacheManager.getAllCacheInfo();
+      const cacheFiles = Object.keys(cacheInfo)
+        .filter(name => fs.existsSync(path.join(cacheManager.cacheDir, `${name}.zip`)))
+        .map(name => {
+          const stats = fs.statSync(path.join(cacheManager.cacheDir, `${name}.zip`));
+          const cacheItem = cacheInfo[name];
+          return {
+            name: `${name}.zip`,
+            size: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
+            url: `/cache/${name}.zip`,
+            created: new Date(cacheItem.timestamp).toLocaleString(),
+            type: 'cache',
+            metadata: cacheItem.metadata || {}
+          };
+        });
+      
+      // 合并文件列表
+      const files = [...publicFiles, ...cacheFiles];
       
       // 生成HTML页面
       let html = `
@@ -92,16 +132,22 @@ function startFileServer(port = 3000) {
               <th>文件名</th>
               <th>大小</th>
               <th>创建时间</th>
+              <th>类型</th>
               <th>操作</th>
             </tr>
         `;
         
         files.forEach(file => {
+          const typeLabel = file.type === 'cache' ? '缓存' : '公共';
+          const titleInfo = file.metadata && file.metadata.title ? ` (${file.metadata.title})` : '';
+          const countInfo = file.metadata && file.metadata.count ? ` - ${file.metadata.count}个贴纸` : '';
+          
           html += `
             <tr>
-              <td>${file.name}</td>
+              <td>${file.name}${titleInfo}${countInfo}</td>
               <td>${file.size}</td>
               <td>${file.created}</td>
+              <td>${typeLabel}</td>
               <td><a href="${file.url}" download>下载</a></td>
             </tr>
           `;

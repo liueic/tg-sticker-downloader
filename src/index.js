@@ -9,6 +9,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 const { startFileServer } = require('./services/fileServer');
 const { sendFileWithRetry } = require('./services/fileUploader');
+const cacheManager = require('./services/cacheManager');
 
 // 加载环境变量
 dotenv.config();
@@ -113,6 +114,48 @@ bot.on('sticker', async (ctx) => {
     // 发送处理中的消息
     const statusMessage = await ctx.reply(`正在处理贴纸包 "${stickerSetName}"，请稍候...`);
     
+    // 检查缓存
+    if (cacheManager.isCached(stickerSetName)) {
+      console.log(`贴纸包 ${stickerSetName} 已缓存，直接使用缓存`);
+      await ctx.reply(`找到缓存的贴纸包，无需重新下载`);
+      
+      const cachedFilePath = cacheManager.getCachePath(stickerSetName);
+      
+      // 检查文件大小
+      const stats = fs.statSync(cachedFilePath);
+      const fileSizeInMB = stats.size / (1024 * 1024);
+      console.log(`缓存的压缩包大小: ${fileSizeInMB.toFixed(2)} MB`);
+      
+      // 发送缓存的文件
+      try {
+        console.log('使用文件上传服务发送缓存的压缩包...');
+        const sendResult = await sendFileWithRetry(
+          process.env.BOT_TOKEN,
+          ctx.chat.id,
+          cachedFilePath,
+          {
+            caption: `贴纸包(来自缓存): ${stickerSetName}`
+          }
+        );
+        
+        if (sendResult.success) {
+          await ctx.reply('贴纸包发送成功！');
+          return;
+        } else {
+          throw new Error(sendResult.error || '发送缓存文件失败');
+        }
+      } catch (sendError) {
+        console.error('发送缓存压缩包时出错:', sendError);
+        
+        // 提供下载链接
+        const fileServerUrl = `http://localhost:${FILE_SERVER_PORT}/${stickerSetName}.zip`;
+        const publicUrl = process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/${stickerSetName}.zip` : fileServerUrl;
+        
+        await ctx.reply(`由于网络原因，无法直接发送贴纸包。\n\n您可以通过以下链接下载：\n${publicUrl}\n\n或者访问文件服务器：http://localhost:${FILE_SERVER_PORT}`);
+        return;
+      }
+    }
+    
     // 创建贴纸包专属的下载目录
     const stickerDir = path.join(downloadPath, stickerSetName);
     fs.ensureDirSync(stickerDir);
@@ -150,6 +193,13 @@ bot.on('sticker', async (ctx) => {
         fs.removeSync(stickerDir); // 清理临时文件
         return ctx.reply(`创建压缩包失败: ${archiveResult.error}`);
       }
+      
+      // 添加到缓存
+      console.log('添加贴纸包到缓存...');
+      await cacheManager.addToCache(stickerSetName, archiveResult.archivePath, {
+        title: downloadResult.stickerSetTitle || stickerSetName,
+        count: downloadResult.count || 0
+      });
       
       // 检查文件大小
       console.log('检查压缩包大小...');
@@ -247,6 +297,11 @@ const FILE_SERVER_PORT = process.env.FILE_SERVER_PORT || 3000;
 const fileServer = startFileServer(FILE_SERVER_PORT);
 console.log(`文件服务器已启动，访问 http://localhost:${FILE_SERVER_PORT} 查看可下载的贴纸包`);
 
+// 清理过期缓存
+console.log('清理过期缓存...');
+const cleanedCount = cacheManager.cleanExpiredCache();
+console.log(`清理了 ${cleanedCount} 个过期的缓存项`);
+
 // 启动机器人
 bot.launch()
   .then(() => {
@@ -257,5 +312,11 @@ bot.launch()
   });
 
 // 优雅地处理退出
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  console.log('收到SIGINT信号，正在关闭...');
+  bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+  console.log('收到SIGTERM信号，正在关闭...');
+  bot.stop('SIGTERM');
+});

@@ -10,12 +10,13 @@
 - 提供文件服务器，当直接发送失败时可通过链接下载
 - 多线程下载，提高下载速度
 - 支持代理设置，解决网络访问问题
+- 缓存功能，避免重复下载相同的贴纸包
 
 ## 安装
 
 1. 克隆此仓库
 ```bash
-git clone https://github.com/yourusername/tg-sticker-downloader.git
+git clone https://github.com/liueic/tg-sticker-downloader.git
 cd tg-sticker-downloader
 ```
 
@@ -34,6 +35,8 @@ cp .env.example .env
 - `FILE_SERVER_PORT`: 文件服务器端口（默认为 `3000`）
 - `PUBLIC_URL`: 如果你的服务器可以从互联网访问，设置此项为公共URL
 - `http_proxy`/`https_proxy`: 如果需要使用代理，设置这些变量
+- `CACHE_MAX_AGE`: 缓存最大保存时间（毫秒），默认为7天（604800000毫秒）
+- `CACHE_DIR`: 缓存目录，默认为`DOWNLOAD_PATH/cache`
 
 ## 获取 Telegram 机器人 Token
 
@@ -53,10 +56,30 @@ npm start
 3. 发送一个贴纸给机器人
 4. 等待机器人下载并发送贴纸包
 
+## 文件服务器
+
+机器人启动时会同时启动一个文件服务器，默认端口为3000。你可以通过以下方式访问：
+
+- 本地访问：http://localhost:3000
+- 如果配置了PUBLIC_URL，也可以通过公共URL访问
+
+文件服务器提供了一个网页界面，列出所有可下载的贴纸包，方便用户下载。
+
+## 缓存功能
+
+机器人具有缓存功能，可以避免重复下载相同的贴纸包：
+
+- 当用户请求已下载过的贴纸包时，机器人会直接从缓存中获取，无需重新下载
+- 缓存的贴纸包会保存在缓存目录中（默认为`./downloads/cache`）
+- 缓存有效期默认为7天，可通过`CACHE_MAX_AGE`环境变量配置
+- 机器人启动时会自动清理过期的缓存
+- 文件服务器会显示缓存的贴纸包信息，包括贴纸包名称、大小、创建时间等
+
 ## 注意事项
 
 - 大型贴纸包可能需要较长时间下载
 - Telegram 对文件大小有限制，非常大的贴纸包可能无法发送
+- 如果遇到网络问题，机器人会自动重试发送，最多重试3次
 
 ## 许可证
 

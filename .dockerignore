@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.git
+.github
+.env
+.env.*
+*.md
+!README.md
+downloads/*
+public/*.zip
