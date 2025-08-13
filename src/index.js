@@ -166,29 +166,19 @@ bot.on('sticker', async (ctx) => {
       await ctx.reply('正在使用多线程下载贴纸，这可能需要一些时间，请耐心等待...');
       console.log(`开始下载贴纸包: ${stickerSetName}`);
       
-      // 使用Worker线程下载贴纸
-      const downloadResult = await Promise.race([
-        downloadStickersWithWorker(stickerSetName, stickerDir),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('下载超时，请稍后再试')), 300000) // 5分钟超时
-        )
-      ]);
+      // 使用Worker线程下载贴纸 - 移除超时限制，让大型贴纸包有足够时间下载
+      const downloadResult = await downloadStickersWithWorker(stickerSetName, stickerDir);
       
       if (!downloadResult.success) {
         fs.removeSync(stickerDir); // 清理临时文件
         return ctx.reply(`下载失败: ${downloadResult.error}`);
       }
       
-      // 创建压缩包
+      // 创建压缩包 - 移除超时限制，让大型贴纸包有足够时间压缩
       await ctx.reply('下载完成，正在创建压缩包...');
       console.log('创建压缩包...');
       
-      const archiveResult = await Promise.race([
-        createStickerArchive(stickerSetName, stickerDir),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('创建压缩包超时')), 60000) // 1分钟超时
-        )
-      ]);
+      const archiveResult = await createStickerArchive(stickerSetName, stickerDir);
       
       if (!archiveResult.success) {
         fs.removeSync(stickerDir); // 清理临时文件
