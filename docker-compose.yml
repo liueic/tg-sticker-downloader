@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   tg-sticker-download:
     image: aicnal/tg-sticker-downloader:latest

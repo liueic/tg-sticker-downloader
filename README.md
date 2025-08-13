@@ -12,6 +12,49 @@
 - 支持代理设置，解决网络访问问题
 - 缓存功能，避免重复下载相同的贴纸包
 
+## 部署
+
+推荐您使用 Docker 部署，这样就可以直接运行 `docker compose up -d` 来启动机器人。
+
+```yml
+services:
+  tg-sticker-download:
+    image: aicnal/tg-sticker-downloader:latest
+    container_name: tg_sticker_download
+    restart: unless-stopped
+    ports:
+      - "${FILE_SERVER_PORT:-3000}:3000"
+    volumes:
+      - ./downloads:/app/downloads
+      - ./public:/app/public
+    environment:
+      - NODE_ENV=production
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DOWNLOAD_PATH=/app/downloads
+      - FILE_SERVER_PORT=3000
+      # 如果需要代理，取消下面两行的注释并设置正确的代理地址
+      # - http_proxy=${http_proxy}
+      # - https_proxy=${https_proxy}
+      # 如果有公共URL，取消下面一行的注释
+      # - PUBLIC_URL=${PUBLIC_URL}
+      # 缓存设置
+      # - CACHE_MAX_AGE=${CACHE_MAX_AGE:-604800000}
+      # - CACHE_DIR=/app/downloads/cache
+```
+
+创建 `.env` 文件，填入以下信息：
+
+```
+# Telegram Bot Token (从 @BotFather 获取)
+BOT_TOKEN=7581719731:AAGWgc6oa6_-PGpD-BvqeUxocAAuge15AD0
+```
+
+之后启动：
+
+```bash
+docker compose up -d
+```
+
 ## 安装
 
 1. 克隆此仓库
@@ -80,6 +123,10 @@ npm start
 - 大型贴纸包可能需要较长时间下载
 - Telegram 对文件大小有限制，非常大的贴纸包可能无法发送
 - 如果遇到网络问题，机器人会自动重试发送，最多重试3次
+
+## 免责声明
+
+本软件仅供学习交流，请勿用于其他用途。
 
 ## 许可证
 
