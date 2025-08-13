@@ -7,6 +7,9 @@
 - 下载完整的 Telegram 贴纸包
 - 支持普通贴纸、动画贴纸和视频贴纸
 - 将贴纸打包为 ZIP 文件发送给用户
+- 提供文件服务器，当直接发送失败时可通过链接下载
+- 多线程下载，提高下载速度
+- 支持代理设置，解决网络访问问题
 
 ## 安装
 
@@ -25,7 +28,12 @@ npm install
 ```bash
 cp .env.example .env
 ```
-然后编辑 `.env` 文件，填入你的 Telegram 机器人 Token
+然后编辑 `.env` 文件，填入以下信息：
+- `BOT_TOKEN`: 你的 Telegram 机器人 Token
+- `DOWNLOAD_PATH`: 下载文件的临时存储路径（默认为 `./downloads`）
+- `FILE_SERVER_PORT`: 文件服务器端口（默认为 `3000`）
+- `PUBLIC_URL`: 如果你的服务器可以从互联网访问，设置此项为公共URL
+- `http_proxy`/`https_proxy`: 如果需要使用代理，设置这些变量
 
 ## 获取 Telegram 机器人 Token
 

@@ -7,6 +7,8 @@ const { downloadStickers } = require('./services/stickerDownloader');
 const { createStickerArchive } = require('./services/archiveCreator');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const { startFileServer } = require('./services/fileServer');
+const { sendFileWithRetry } = require('./services/fileUploader');
 
 // 加载环境变量
 dotenv.config();
@@ -169,42 +171,48 @@ bot.on('sticker', async (ctx) => {
         return ctx.reply('很抱歉，贴纸包太大，无法通过Telegram发送。');
       }
       
+      // 保存压缩包到下载目录
+      const savedFilePath = path.join(process.cwd(), 'public', `${stickerSetName}.zip`);
+      
+      // 确保public目录存在
+      fs.ensureDirSync(path.join(process.cwd(), 'public'));
+      
+      // 复制压缩包到public目录
+      fs.copySync(archiveResult.archivePath, savedFilePath);
+      
       // 发送压缩包
-      await ctx.reply('压缩包创建完成，正在发送...');
+      await ctx.reply('压缩包创建完成，正在尝试发送...');
       console.log('发送压缩包...');
       
       try {
-        // 添加重试机制
-        let retries = 0;
-        const MAX_RETRIES = 3;
-        let success = false;
-        
-        while (!success && retries < MAX_RETRIES) {
-          try {
-            await ctx.replyWithDocument({ source: archiveResult.archivePath });
-            success = true;
-            await ctx.reply('贴纸包发送成功！');
-          } catch (sendError) {
-            retries++;
-            console.error(`发送压缩包失败 (尝试 ${retries}/${MAX_RETRIES}):`, sendError);
-            
-            if (retries >= MAX_RETRIES) {
-              throw sendError;
-            }
-            
-            // 等待一段时间后重试
-            await new Promise(resolve => setTimeout(resolve, 3000 * retries));
-            await ctx.reply(`发送失败，正在进行第${retries}次重试...`);
+        // 使用专门的文件上传服务发送文件
+        console.log('使用文件上传服务发送压缩包...');
+        const sendResult = await sendFileWithRetry(
+          process.env.BOT_TOKEN,
+          ctx.chat.id,
+          archiveResult.archivePath,
+          {
+            caption: `贴纸包: ${stickerSetName}`
           }
+        );
+        
+        if (sendResult.success) {
+          await ctx.reply('贴纸包发送成功！');
+        } else {
+          throw new Error(sendResult.error || '发送文件失败');
         }
       } catch (sendError) {
         console.error('发送压缩包时出错:', sendError);
-        await ctx.reply('发送压缩包失败，请稍后再试。');
+        
+        // 提供下载链接而不是本地文件路径
+        const fileServerUrl = `http://localhost:${FILE_SERVER_PORT}/${stickerSetName}.zip`;
+        const publicUrl = process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/${stickerSetName}.zip` : fileServerUrl;
+        
+        await ctx.reply(`由于网络原因，无法直接发送贴纸包。\n\n您可以通过以下链接下载：\n${publicUrl}\n\n或者访问文件服务器：http://localhost:${FILE_SERVER_PORT}`);
       } finally {
-        // 清理临时文件
+        // 清理临时文件，但保留public目录中的压缩包
         console.log('清理临时文件...');
         fs.removeSync(stickerDir);
-        fs.removeSync(archiveResult.archivePath);
       }
       
       // 清理临时文件
@@ -233,6 +241,11 @@ bot.on('sticker', async (ctx) => {
 bot.on('message', (ctx) => {
   ctx.reply('请发送一个贴纸给我，我将为您下载整个贴纸包。');
 });
+
+// 启动文件服务器
+const FILE_SERVER_PORT = process.env.FILE_SERVER_PORT || 3000;
+const fileServer = startFileServer(FILE_SERVER_PORT);
+console.log(`文件服务器已启动，访问 http://localhost:${FILE_SERVER_PORT} 查看可下载的贴纸包`);
 
 // 启动机器人
 bot.launch()

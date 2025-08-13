@@ -136,7 +136,7 @@ async function downloadFile(filePath, outputPath) {
  */
 async function downloadStickersInParallel(stickers, outputDir) {
   // 将贴纸分成多个批次，每批次并行下载
-  const BATCH_SIZE = 5; // 每批次下载5个贴纸
+  const BATCH_SIZE = 10; // 每批次下载5个贴纸
   const results = [];
   
   for (let i = 0; i < stickers.length; i += BATCH_SIZE) {
