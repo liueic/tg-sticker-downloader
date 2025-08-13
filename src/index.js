@@ -17,10 +17,13 @@ dotenv.config();
 
 // 初始化机器人，配置代理
 const botOptions = {
-  // 移除API请求超时限制，避免大型贴纸包处理时超时
+  // 设置较长但合理的超时时间，避免无限等待
   telegram: {
-    // 不设置超时限制，让长时间操作能够完成
-  }
+    // 设置30分钟的API请求超时，足够处理大型贴纸包
+    apiRequestTimeoutMs: 1800000, // 30分钟
+  },
+  // 设置消息处理超时为45分钟，给复杂操作更多时间
+  handlerTimeout: 2700000 // 45分钟
 };
 
 // 检查是否设置了代理
@@ -32,11 +35,40 @@ if (process.env.https_proxy || process.env.http_proxy) {
 
 const bot = new Telegraf(process.env.BOT_TOKEN, botOptions);
 
+// 覆盖 Telegraf 内部的超时设置
+if (bot.telegram && bot.telegram.options) {
+  // 确保没有任何内部超时限制
+  bot.telegram.options.timeout = 1800000; // 30分钟
+  bot.telegram.options.apiRequestTimeoutMs = 1800000; // 30分钟
+}
+
+// 如果存在内部的 p-timeout 或其他超时机制，尝试禁用
+process.env.TELEGRAF_TIMEOUT = '1800000';
+
 // 配置全局错误处理
 bot.catch((err, ctx) => {
   console.error('Telegraf错误:', err);
+  
   if (ctx) {
-    ctx.reply('机器人遇到了一个错误，请稍后再试。如果问题持续存在，请联系管理员：@CialloNFDBot');
+    // 区分不同类型的错误，提供更准确的反馈
+    if (err.name === 'TimeoutError' || err.message.includes('timeout')) {
+      // 超时错误 - 可能是因为贴纸包太大
+      ctx.reply('处理时间较长，可能是因为贴纸包较大。请耐心等待，或稍后重试。如果持续出现此问题，请联系管理员：@CialloNFDBot');
+    } else if (err.code === 'EPIPE' || err.code === 'ECONNRESET') {
+      // 网络连接问题
+      ctx.reply('网络连接出现问题，请检查网络状态后重试。如果问题持续存在，请联系管理员：@CialloNFDBot');
+    } else if (err.code === 401) {
+      // Bot token 问题
+      console.error('Bot token 无效或已过期');
+      ctx.reply('机器人配置出现问题，请联系管理员：@CialloNFDBot');
+    } else if (err.message && err.message.includes('file too large')) {
+      // 文件太大
+      ctx.reply('贴纸包文件太大，无法发送。请联系管理员：@CialloNFDBot');
+    } else {
+      // 其他未知错误
+      console.error('未知错误类型:', err.name, err.code, err.message);
+      ctx.reply('机器人遇到了一个未知错误，请稍后再试。如果问题持续存在，请联系管理员：@CialloNFDBot');
+    }
   }
 });
 
@@ -101,6 +133,11 @@ function downloadStickersWithWorker(stickerSetName, outputDir) {
 
 // 处理贴纸消息
 bot.on('sticker', async (ctx) => {
+  // 为这个特定的处理设置更长的超时时间
+  const processingTimeout = setTimeout(() => {
+    console.log('贴纸处理仍在进行中，这是正常的...');
+  }, 120000); // 2分钟后提示但不中断
+  
   try {
     console.log('收到贴纸消息:', JSON.stringify(ctx.message.sticker, null, 2));
     
