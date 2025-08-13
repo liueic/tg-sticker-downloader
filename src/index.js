@@ -10,6 +10,7 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 const { startFileServer } = require('./services/fileServer');
 const { sendFileWithRetry } = require('./services/fileUploader');
 const cacheManager = require('./services/cacheManager');
+const { convertDirectoryWebmToWebp } = require('./services/formatConverter');
 
 // 加载环境变量
 dotenv.config();

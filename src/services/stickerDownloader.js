@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { convertDirectoryWebmToWebp } = require('./formatConverter');
 
 // 创建axios实例，配置代理
 const createAxiosInstance = () => {
@@ -227,6 +228,19 @@ async function downloadStickers(stickerSetName, outputDir) {
     }
     
     console.log(`贴纸包下载完成，成功: ${successCount}，失败: ${failCount}`);
+    
+    // 转换webm文件为webp格式
+    console.log('开始将webm文件转换为webp格式...');
+    try {
+      const conversionResult = await convertDirectoryWebmToWebp(outputDir, false);
+      if (conversionResult.success) {
+        console.log(`格式转换完成，成功转换了 ${conversionResult.converted} 个文件`);
+      } else {
+        console.error('格式转换过程中出错:', conversionResult.error);
+      }
+    } catch (conversionError) {
+      console.error('格式转换过程中出现异常:', conversionError);
+    }
     
     return {
       success: true,
