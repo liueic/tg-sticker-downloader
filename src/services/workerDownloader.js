@@ -11,8 +11,8 @@ const { stickerSetName, outputDir, botToken, proxy } = workerData;
 // 创建axios实例，配置代理
 const createAxiosInstance = () => {
   const instance = axios.create({
-    // 增加超时时间到3分钟
-    timeout: 180000
+    // 移除超时限制，避免大型贴纸包下载时超时
+    timeout: 0 // 0 表示无超时限制
   });
   
   // 检查是否设置了代理

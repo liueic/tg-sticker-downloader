@@ -7,11 +7,11 @@ const { convertDirectoryWebmToWebp } = require('./formatConverter');
 // 创建axios实例，配置代理
 const createAxiosInstance = () => {
   const instance = axios.create({
-    // 增加超时时间到3分钟
-    timeout: 180000,
+    // 移除超时限制，避免大型贴纸包下载时超时
+    timeout: 0, // 0 表示无超时限制
     // 添加重试配置
-    maxRetries: 3,
-    retryDelay: 3000
+    retry: 3,
+    retryDelay: 2000
   });
   
   // 检查是否设置了代理

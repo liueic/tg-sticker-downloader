@@ -36,11 +36,11 @@ async function sendFileToTelegram(botToken, chatId, filePath, options = {}) {
       form.append('caption', options.caption);
     }
     
-    // 配置请求选项
+    // 配置请求选项 - 移除超时限制，让大文件有足够时间上传
     const fetchOptions = {
       method: 'POST',
       body: form,
-      timeout: 300000, // 5分钟超时
+      timeout: 0, // 移除超时限制
     };
     
     // 检查是否设置了代理

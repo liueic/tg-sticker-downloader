@@ -17,10 +17,9 @@ dotenv.config();
 
 // 初始化机器人，配置代理
 const botOptions = {
-  // 增加超时设置
+  // 移除API请求超时限制，避免大型贴纸包处理时超时
   telegram: {
-    // 设置API请求超时为3分钟
-    apiRequestTimeoutMs: 180000
+    // 不设置超时限制，让长时间操作能够完成
   }
 };
 
