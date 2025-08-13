@@ -37,7 +37,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN, botOptions);
 bot.catch((err, ctx) => {
   console.error('Telegraf错误:', err);
   if (ctx) {
-    ctx.reply('机器人遇到了一个错误，请稍后再试。如果问题持续存在，请联系管理员。');
+    ctx.reply('机器人遇到了一个错误，请稍后再试。如果问题持续存在，请联系管理员：@CialloNFDBot');
   }
 });
 
@@ -152,7 +152,7 @@ bot.on('sticker', async (ctx) => {
         const fileServerUrl = `http://localhost:${FILE_SERVER_PORT}/${stickerSetName}.zip`;
         const publicUrl = process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/${stickerSetName}.zip` : fileServerUrl;
         
-        await ctx.reply(`由于网络原因，无法直接发送贴纸包。\n\n您可以通过以下链接下载：\n${publicUrl}\n\n或者访问文件服务器：http://localhost:${FILE_SERVER_PORT}`);
+        await ctx.reply(`由于网络原因，无法直接发送贴纸包。\n\n您可以通过以下链接下载：\n\n或者访问文件服务器：http://localhost:${FILE_SERVER_PORT}`);
         return;
       }
     }

@@ -16,10 +16,9 @@ async function convertWebmToWebp(inputPath, outputPath) {
   try {
     console.log(`开始将 ${inputPath} 转换为 ${outputPath}`);
     
-    // 构建ffmpeg命令参数
+    // 构建ffmpeg命令参数 - 保持原始尺寸，不添加填充
     const args = [
       '-i', inputPath,
-      '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=white@0',
       '-loop', '0',
       '-compression_level', '6',
       '-quality', '80',
