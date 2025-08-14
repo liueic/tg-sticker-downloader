@@ -79,7 +79,7 @@ fs.ensureDirSync(downloadPath);
 
 // 启动消息
 bot.start(async (ctx) => {
-  const stats = statisticsManager.getStats();
+  const stats = await statisticsManager.getStats();
   ctx.reply(`欢迎使用贴纸下载机器人！\n\n请发送一个贴纸给我，我将为您下载整个贴纸包。\n\n📊 已帮助用户下载了 ${stats.totalDownloads} 个贴纸包\n\n输入 /help 查看更多命令`);
 });
 
@@ -99,7 +99,7 @@ bot.help((ctx) => {
 // 统计命令
 bot.command('stats', async (ctx) => {
   try {
-    const stats = statisticsManager.getStats();
+    const stats = await statisticsManager.getStats();
     
     let message = `📊 下载统计信息\n\n`;
     message += `🎯 总下载数：${stats.totalDownloads} 个贴纸包\n\n`;

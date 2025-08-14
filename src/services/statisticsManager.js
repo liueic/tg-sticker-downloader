@@ -9,15 +9,24 @@ class StatisticsManager {
             downloadHistory: [],
             lastUpdated: null
         };
-        this.init();
+        this.initialized = false;
+        this.initPromise = this.init();
     }
 
     async init() {
         try {
             await this.loadStats();
+            this.initialized = true;
         } catch (error) {
             console.log('初始化统计数据...');
             await this.saveStats();
+            this.initialized = true;
+        }
+    }
+
+    async ensureInitialized() {
+        if (!this.initialized) {
+            await this.initPromise;
         }
     }
 
@@ -25,9 +34,11 @@ class StatisticsManager {
         try {
             const data = await fs.readFile(this.statsFile, 'utf8');
             this.stats = JSON.parse(data);
+            console.log('统计数据加载成功');
         } catch (error) {
-            // 如果文件不存在，使用默认值
-            console.log('统计文件不存在，使用默认统计数据');
+            // 如果文件不存在，抛出错误让init方法处理
+            console.log('统计文件不存在，将创建新的统计文件');
+            throw error;
         }
     }
 
@@ -46,6 +57,8 @@ class StatisticsManager {
 
     async recordDownload(stickerSetName, stickerCount = 0) {
         try {
+            await this.ensureInitialized();
+            
             this.stats.totalDownloads += 1;
             this.stats.downloadHistory.push({
                 name: stickerSetName,
@@ -65,7 +78,8 @@ class StatisticsManager {
         }
     }
 
-    getStats() {
+    async getStats() {
+        await this.ensureInitialized();
         return {
             totalDownloads: this.stats.totalDownloads,
             recentDownloads: this.stats.downloadHistory.slice(-10), // 最近10条
