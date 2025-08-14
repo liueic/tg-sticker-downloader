@@ -73,15 +73,6 @@ class StatisticsManager {
         };
     }
 
-    async resetStats() {
-        this.stats = {
-            totalDownloads: 0,
-            downloadHistory: [],
-            lastUpdated: null
-        };
-        await this.saveStats();
-        console.log('统计数据已重置');
-    }
 }
 
 module.exports = new StatisticsManager();

@@ -92,10 +92,7 @@ bot.help((ctx) => {
     '3. 下载完成后，我会将贴纸包发送给您\n\n' +
     '可用命令：\n' +
     '/stats - 查看下载统计\n' +
-    '/myid - 获取你的用户ID\n' +
-    '/help - 显示此帮助信息\n\n' +
-    '管理员命令：\n' +
-    '/resetstats - 重置统计数据'
+    '/help - 显示此帮助信息'
   );
 });
 
@@ -129,39 +126,6 @@ bot.command('stats', async (ctx) => {
   }
 });
 
-// 获取用户ID命令
-bot.command('myid', (ctx) => {
-  const userId = ctx.from.id;
-  const username = ctx.from.username ? `@${ctx.from.username}` : '无用户名';
-  const firstName = ctx.from.first_name || '无名称';
-  
-  ctx.reply(
-    `👤 你的用户信息：\n\n` +
-    `🆔 用户ID: \`${userId}\`\n` +
-    `👤 用户名: ${username}\n` +
-    `📝 姓名: ${firstName}\n\n` +
-    `💡 如需设置为管理员，请将用户ID \`${userId}\` 添加到环境变量 ADMIN_IDS 中`,
-    { parse_mode: 'Markdown' }
-  );
-});
-
-// 重置统计命令（管理员专用）
-bot.command('resetstats', async (ctx) => {
-  try {
-    // 检查是否为管理员（可以通过环境变量设置管理员ID）
-    const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
-    
-    if (adminIds.length > 0 && !adminIds.includes(ctx.from.id)) {
-      return ctx.reply('❌ 此命令仅限管理员使用');
-    }
-    
-    await statisticsManager.resetStats();
-    ctx.reply('✅ 统计数据已重置');
-  } catch (error) {
-    console.error('重置统计数据时出错:', error);
-    ctx.reply('重置统计数据时出错，请稍后再试。');
-  }
-});
 
 /**
  * 使用Worker线程下载贴纸
