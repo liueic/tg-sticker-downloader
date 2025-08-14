@@ -11,6 +11,7 @@ const { startFileServer } = require('./services/fileServer');
 const { sendFileWithRetry } = require('./services/fileUploader');
 const cacheManager = require('./services/cacheManager');
 const { convertDirectoryWebmToWebp } = require('./services/formatConverter');
+const statisticsManager = require('./services/statisticsManager');
 
 // 加载环境变量
 dotenv.config();
@@ -77,8 +78,9 @@ const downloadPath = process.env.DOWNLOAD_PATH || './downloads';
 fs.ensureDirSync(downloadPath);
 
 // 启动消息
-bot.start((ctx) => {
-  ctx.reply('欢迎使用贴纸下载机器人！\n\n请发送一个贴纸给我，我将为您下载整个贴纸包。');
+bot.start(async (ctx) => {
+  const stats = statisticsManager.getStats();
+  ctx.reply(`欢迎使用贴纸下载机器人！\n\n请发送一个贴纸给我，我将为您下载整个贴纸包。\n\n📊 已帮助用户下载了 ${stats.totalDownloads} 个贴纸包\n\n输入 /help 查看更多命令`);
 });
 
 // 帮助命令
@@ -87,8 +89,78 @@ bot.help((ctx) => {
     '使用指南：\n' +
     '1. 发送一个贴纸给我\n' +
     '2. 我会自动下载整个贴纸包\n' +
-    '3. 下载完成后，我会将贴纸包发送给您\n\n'
+    '3. 下载完成后，我会将贴纸包发送给您\n\n' +
+    '可用命令：\n' +
+    '/stats - 查看下载统计\n' +
+    '/myid - 获取你的用户ID\n' +
+    '/help - 显示此帮助信息\n\n' +
+    '管理员命令：\n' +
+    '/resetstats - 重置统计数据'
   );
+});
+
+// 统计命令
+bot.command('stats', async (ctx) => {
+  try {
+    const stats = statisticsManager.getStats();
+    
+    let message = `📊 下载统计信息\n\n`;
+    message += `🎯 总下载数：${stats.totalDownloads} 个贴纸包\n\n`;
+    
+    if (stats.recentDownloads && stats.recentDownloads.length > 0) {
+      message += `📋 最近下载的贴纸包：\n`;
+      stats.recentDownloads.forEach((download, index) => {
+        const date = new Date(download.downloadTime).toLocaleString('zh-CN');
+        message += `${index + 1}. ${download.name} (${download.stickerCount || 0}个贴纸) - ${date}\n`;
+      });
+    } else {
+      message += `暂无下载记录\n`;
+    }
+    
+    if (stats.lastUpdated) {
+      const lastUpdate = new Date(stats.lastUpdated).toLocaleString('zh-CN');
+      message += `\n📅 最后更新：${lastUpdate}`;
+    }
+    
+    ctx.reply(message);
+  } catch (error) {
+    console.error('获取统计信息时出错:', error);
+    ctx.reply('获取统计信息时出错，请稍后再试。');
+  }
+});
+
+// 获取用户ID命令
+bot.command('myid', (ctx) => {
+  const userId = ctx.from.id;
+  const username = ctx.from.username ? `@${ctx.from.username}` : '无用户名';
+  const firstName = ctx.from.first_name || '无名称';
+  
+  ctx.reply(
+    `👤 你的用户信息：\n\n` +
+    `🆔 用户ID: \`${userId}\`\n` +
+    `👤 用户名: ${username}\n` +
+    `📝 姓名: ${firstName}\n\n` +
+    `💡 如需设置为管理员，请将用户ID \`${userId}\` 添加到环境变量 ADMIN_IDS 中`,
+    { parse_mode: 'Markdown' }
+  );
+});
+
+// 重置统计命令（管理员专用）
+bot.command('resetstats', async (ctx) => {
+  try {
+    // 检查是否为管理员（可以通过环境变量设置管理员ID）
+    const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [];
+    
+    if (adminIds.length > 0 && !adminIds.includes(ctx.from.id)) {
+      return ctx.reply('❌ 此命令仅限管理员使用');
+    }
+    
+    await statisticsManager.resetStats();
+    ctx.reply('✅ 统计数据已重置');
+  } catch (error) {
+    console.error('重置统计数据时出错:', error);
+    ctx.reply('重置统计数据时出错，请稍后再试。');
+  }
 });
 
 /**
@@ -176,6 +248,8 @@ bot.on('sticker', async (ctx) => {
         );
         
         if (sendResult.success) {
+          // 记录缓存文件的下载统计
+          await statisticsManager.recordDownload(stickerSetName, 0);
           await ctx.reply('贴纸包发送成功！');
           return;
         } else {
@@ -274,6 +348,8 @@ bot.on('sticker', async (ctx) => {
         );
         
         if (sendResult.success) {
+          // 记录下载统计
+          await statisticsManager.recordDownload(stickerSetName, downloadResult.count || 0);
           await ctx.reply('贴纸包发送成功！');
         } else {
           throw new Error(sendResult.error || '发送文件失败');

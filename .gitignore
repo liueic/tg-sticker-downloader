@@ -6,6 +6,7 @@ node_modules/
 
 # 下载的文件
 downloads/
+config/
 
 # 日志
 logs/
